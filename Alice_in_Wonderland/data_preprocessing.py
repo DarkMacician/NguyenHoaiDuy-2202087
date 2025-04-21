@@ -13,13 +13,13 @@ from sklearn.metrics.pairwise import cosine_similarity
 nltk.download('stopwords')
 stop_words = set(stopwords.words('english'))
 
-def clean_text(text):
+def clean_text(text, stop_words=stop_words):
     # Lowercase the text
     text = text.lower()
+    #text = text.replace('"', '')
 
-    # Remove only double quotes (")
-    text = text.replace('"', '')  # This will remove all double quotes
-
+    # Remove double quotes from the start and end of words
+    text = re.sub(r"(^['\"]|['\"]$)", '', text)
     # Remove other punctuation
     text = text.translate(str.maketrans("", "", string.punctuation))
 
@@ -32,6 +32,9 @@ def clean_text(text):
     # Remove stopwords
     words = text.split()
     words = [word for word in words if word not in stop_words]
+    for i in words:
+        if '"' in i:
+            print(i)
 
     return words
 
@@ -46,7 +49,9 @@ def plot_wordcloud(word_freq):
     plt.imshow(wordcloud, interpolation='bilinear')
     plt.axis("off")
     plt.title("Word Cloud")
+    plt.savefig("wordcloud.png")
     plt.show()
+
 
 def plot_barchart(word_freq, top_n=20):
     most_common = word_freq.most_common(top_n)
@@ -58,7 +63,9 @@ def plot_barchart(word_freq, top_n=20):
     plt.xlabel("Words")
     plt.ylabel("Frequency")
     plt.tight_layout()
+    plt.savefig("barchart.png")
     plt.show()
+
 
 def load_glove_embeddings(file_path):
     embeddings = {}
@@ -70,7 +77,7 @@ def load_glove_embeddings(file_path):
             embeddings[word] = vector
     return embeddings
 
-def plot_semantic_relationships(word_freq, glove_path, top_n=10):
+def plot_semantic_relationships(word_freq, glove_path, top_n=50):
     # Load GloVe embeddings
     embeddings = load_glove_embeddings(glove_path)
 
@@ -98,39 +105,42 @@ def plot_semantic_relationships(word_freq, glove_path, top_n=10):
     plt.title("Semantic Word Relationships (GloVe + PCA)")
     plt.grid(True)
     plt.tight_layout()
+    plt.savefig("semantic_relationships.png")
     plt.show()
 
-def plot_heatmap(word_freq, glove_path, top_n=20):
+
+def plot_heatmap(word_freq, glove_path, top_n=10):
     # Load GloVe embeddings
     embeddings = load_glove_embeddings(glove_path)
 
-    # Get word vectors for the most common words
-    words = [word for word, _ in word_freq.most_common(top_n)]
-    vectors = [embeddings[word] for word in words if word in embeddings]
+    # Lọc ra các từ phổ biến nhất có tồn tại trong GloVe
+    words_vectors = [(word, embeddings[word]) for word, _ in word_freq.most_common(top_n) if word in embeddings]
 
-    if len(vectors) < 2:
+    if len(words_vectors) < 2:
         print("Not enough words found in GloVe to plot heatmap.")
         return
 
-    # Calculate cosine similarities between word vectors
+    words, vectors = zip(*words_vectors)
+
     cosine_sim = cosine_similarity(vectors)
 
-    # Plot heatmap of cosine similarities
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(cosine_sim, xticklabels=words, yticklabels=words, cmap='coolwarm', annot=True, fmt=".2f")
-    plt.title(f"Word Similarities (Top {top_n} Words)")
+    plt.figure(figsize=(12, 9))
+    sns.heatmap(cosine_sim, xticklabels=words, yticklabels=words, cmap='coolwarm', annot=True, fmt=".2f", annot_kws={"size": 9})
+    plt.xticks(rotation=45, ha='right')
+    plt.title(f"Word Similarities (Top {len(words)} Words)")
     plt.tight_layout()
+    plt.savefig("heatmap.png")
     plt.show()
+
 
 # === Run it ===
 file_path = 'text.txt'
-glove_path = 'glove.6B.100d.txt'  # Provide the correct path to the GloVe file
+glove_path = 'glove.6B.100d.txt'
 
 cleaned_words = read_and_clean_txt(file_path)
 word_freq = Counter(cleaned_words)
-for i in word_freq.keys():
-    if '"' in i:
-        print(i)
+print(word_freq.keys())
+
 #Plot Word Cloud
 plot_wordcloud(word_freq)
 
